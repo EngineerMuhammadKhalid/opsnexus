@@ -8,7 +8,7 @@ import { User } from '../types';
 import { MapPin, Calendar, Award, ExternalLink, Shield, Zap, Box, Server, Star, Edit2, Save, X, RefreshCw } from 'lucide-react';
 
 const Profile: React.FC = () => {
-  const { user: currentUser, getUserByUsername, updateUserProfile, logout } = useAuth();
+  const { user: currentUser, getUserByUsername, updateUserProfile } = useAuth();
   const { username } = useParams<{ username: string }>();
   const navigate = useNavigate();
   const { submissions } = useTasks();

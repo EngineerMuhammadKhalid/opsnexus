@@ -1,10 +1,10 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { useTasks } from '../components/TaskContext';
 import { useAuth } from '../components/AuthContext';
 import { Difficulty, Comment } from '../types';
-import { Clock, User, Award, Tag, ExternalLink, ThumbsUp, Code, MessageSquare, Send, Trash2 } from 'lucide-react';
+import { Clock, User, Award, Tag, ExternalLink, ThumbsUp, Code, MessageSquare, Trash2 } from 'lucide-react';
 
 const TaskDetail: React.FC = () => {
   const { id } = useParams<{ id: string }>();

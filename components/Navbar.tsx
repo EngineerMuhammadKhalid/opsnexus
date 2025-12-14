@@ -3,7 +3,7 @@ import React, { useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useTheme } from './ThemeContext';
 import { useAuth } from './AuthContext';
-import { Menu, X, Sun, Moon, Terminal, PlusCircle, LogIn, LogOut, User as UserIcon } from 'lucide-react';
+import { Menu, X, Sun, Moon, Terminal, PlusCircle, LogOut } from 'lucide-react';
 
 const Navbar: React.FC = () => {
   const { isDark, toggleTheme } = useTheme();

@@ -9,7 +9,8 @@ const AdminDatabase: React.FC = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState<'users' | 'tasks' | 'submissions' | 'comments'>('users');
-  const [refreshTrigger, setRefreshTrigger] = useState(0);
+  // Use a force update pattern that TypeScript ignores (skipping the first destructuring element)
+  const [, setRefreshTrigger] = useState(0);
 
   // Redirect if not admin
   useEffect(() => {
@@ -110,6 +111,41 @@ const AdminDatabase: React.FC = () => {
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">{s.taskTitle}</td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-blue-500">
                         <a href={s.repoLink} target="_blank" rel="noreferrer" className="hover:underline">Link</a>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          );
+      case 'comments':
+          const comments = db.comments.getAll();
+          return (
+            <div className="overflow-x-auto">
+              <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+                <thead className="bg-gray-50 dark:bg-gray-800">
+                  <tr>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">ID</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Task ID</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">User</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Text</th>
+                    <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                  </tr>
+                </thead>
+                <tbody className="bg-white dark:bg-darklighter divide-y divide-gray-200 dark:divide-gray-700">
+                  {comments.map(c => (
+                    <tr key={c.id}>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400 font-mono">{c.id}</td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400 font-mono">{c.taskId}</td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">{c.userName}</td>
+                      <td className="px-6 py-4 text-sm text-gray-500 dark:text-gray-400 max-w-xs truncate">{c.text}</td>
+                      <td className="px-6 py-4 whitespace-nowrap text-right text-sm">
+                         <button 
+                           onClick={() => { db.comments.delete(c.id); refresh(); }}
+                           className="text-red-600 hover:text-red-900"
+                         >
+                           <Trash className="h-4 w-4" />
+                         </button>
                       </td>
                     </tr>
                   ))}

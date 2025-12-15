@@ -5,7 +5,7 @@ import { BADGES } from '../constants';
 import { useTasks } from '../components/TaskContext';
 import { useAuth } from '../components/AuthContext';
 import { User } from '../types';
-import { MapPin, Calendar, Award, ExternalLink, Shield, Zap, Box, Server, Star, Edit2, Save, X, RefreshCw, Camera, Upload } from 'lucide-react';
+import { MapPin, Calendar, Award, ExternalLink, Shield, Zap, Box, Server, Star, Edit2, Save, X, RefreshCw, Camera } from 'lucide-react';
 
 const Profile: React.FC = () => {
   const { user: currentUser, getUserByUsername, updateUserProfile } = useAuth();

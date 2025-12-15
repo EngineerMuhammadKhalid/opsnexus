@@ -3,7 +3,7 @@ import React, { useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useTheme } from './ThemeContext';
 import { useAuth } from './AuthContext';
-import { Menu, X, Sun, Moon, Terminal, PlusCircle, LogOut } from 'lucide-react';
+import { Menu, X, Sun, Moon, Terminal, PlusCircle, LogOut, Database } from 'lucide-react';
 
 const Navbar: React.FC = () => {
   const { isDark, toggleTheme } = useTheme();
@@ -57,6 +57,16 @@ const Navbar: React.FC = () => {
             
             {/* Action Buttons */}
             <div className="flex items-center ml-4 space-x-3 border-l border-gray-200 dark:border-gray-700 pl-4">
+               {user?.role === 'admin' && (
+                 <Link
+                   to="/admin/database"
+                   className={`p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors ${isActive('/admin/database') ? 'text-primary' : 'text-gray-500 dark:text-gray-400'}`}
+                   title="System Database"
+                 >
+                   <Database className="h-5 w-5" />
+                 </Link>
+               )}
+
                <Link
                 to={user ? "/create-task" : "/login"}
                 state={!user ? { from: "/create-task" } : undefined}
@@ -149,6 +159,16 @@ const Navbar: React.FC = () => {
             ))}
             
             <div className="border-t border-gray-200 dark:border-gray-700 my-2 pt-2 space-y-1">
+               {user?.role === 'admin' && (
+                  <Link
+                    to="/admin/database"
+                    onClick={() => setIsMenuOpen(false)}
+                    className="block px-3 py-2 rounded-md text-base font-medium text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800"
+                  >
+                    System Database
+                  </Link>
+               )}
+
                <Link
                 to={user ? "/create-task" : "/login"}
                 state={!user ? { from: "/create-task" } : undefined}

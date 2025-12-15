@@ -1,7 +1,7 @@
 
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { User } from '../types';
-import { MOCK_USERS } from '../constants';
+import { db } from '../services/database';
 
 interface AuthContextType {
   user: User | null;
@@ -31,39 +31,30 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   // Initialize data
   useEffect(() => {
-    // 1. Check for logged in user
+    // 1. Check for active session
     const storedUser = localStorage.getItem('opsnexus_user');
     if (storedUser) {
-      setUser(JSON.parse(storedUser));
+      // Validate that the user still exists in DB (in case of manual deletion)
+      const parsedUser = JSON.parse(storedUser);
+      const dbUser = db.users.getById(parsedUser.id);
+      if (dbUser) {
+        setUser(dbUser); // Use fresh data from DB
+      } else {
+        localStorage.removeItem('opsnexus_user');
+      }
     }
-
-    // 2. Seed 'Database' with MOCK_USERS if empty, so edits persist
-    const storedUsersStr = localStorage.getItem('opsnexus_registered_users');
-    if (!storedUsersStr) {
-      localStorage.setItem('opsnexus_registered_users', JSON.stringify(MOCK_USERS));
-    } else {
-      // Optional: If you want to ensure new mock users appear after code updates, 
-      // you could merge them here. For now, we respect the local DB state.
-    }
-
     setIsLoading(false);
   }, []);
 
   const getUserByUsername = (username: string): User | undefined => {
-    const storedUsersStr = localStorage.getItem('opsnexus_registered_users');
-    const storedUsers: User[] = storedUsersStr ? JSON.parse(storedUsersStr) : MOCK_USERS;
-    return storedUsers.find(u => u.username === username);
+    return db.users.getByUsername(username);
   };
 
   const login = async (username: string, password: string): Promise<boolean> => {
     // Simulate API delay
     await new Promise(resolve => setTimeout(resolve, 500));
 
-    // Get fresh list of users from Storage (or default to Mocks)
-    const storedUsersStr = localStorage.getItem('opsnexus_registered_users');
-    const allUsers: User[] = storedUsersStr ? JSON.parse(storedUsersStr) : MOCK_USERS;
-
-    const found = allUsers.find(u => u.username === username && u.password === password);
+    const found = db.users.getAll().find(u => u.username === username && u.password === password);
     
     if (found) {
       setUser(found);
@@ -89,12 +80,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       joinedAt: new Date().toISOString()
     };
 
-    // Store in "DB" (LocalStorage)
-    const storedUsersStr = localStorage.getItem('opsnexus_registered_users');
-    const storedUsers: User[] = storedUsersStr ? JSON.parse(storedUsersStr) : MOCK_USERS;
-    
-    storedUsers.push(newUser);
-    localStorage.setItem('opsnexus_registered_users', JSON.stringify(storedUsers));
+    // Store in DB
+    db.users.create(newUser);
 
     // Auto login
     setUser(newUser);
@@ -110,22 +97,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     if (!user) return;
     
     const updatedUser = { ...user, ...updatedData };
+    
+    // Update State
     setUser(updatedUser);
     localStorage.setItem('opsnexus_user', JSON.stringify(updatedUser));
 
-    // Update in registered users list
-    const storedUsersStr = localStorage.getItem('opsnexus_registered_users');
-    let storedUsers: User[] = storedUsersStr ? JSON.parse(storedUsersStr) : MOCK_USERS;
-    
-    const index = storedUsers.findIndex(u => u.id === user.id);
-    if (index !== -1) {
-      storedUsers[index] = { ...storedUsers[index], ...updatedData };
-      localStorage.setItem('opsnexus_registered_users', JSON.stringify(storedUsers));
-    } else {
-      // Edge case: if user somehow isn't in the list (legacy session), add them
-      storedUsers.push(updatedUser);
-      localStorage.setItem('opsnexus_registered_users', JSON.stringify(storedUsers));
-    }
+    // Update DB
+    db.users.update(updatedUser);
   };
 
   return (

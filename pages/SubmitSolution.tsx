@@ -3,7 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { useTasks } from '../components/TaskContext';
 import { useAuth } from '../components/AuthContext';
-import { Send, CheckCircle, Github, Info } from 'lucide-react';
+import { Send, CheckCircle, Github, Info, Upload, Image as ImageIcon } from 'lucide-react';
 import { Submission } from '../types';
 
 const SubmitSolution: React.FC = () => {
@@ -38,6 +38,17 @@ const SubmitSolution: React.FC = () => {
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
+  };
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setFormData(prev => ({ ...prev, screenshotUrl: reader.result as string }));
+      };
+      reader.readAsDataURL(file);
+    }
   };
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -182,18 +193,43 @@ const SubmitSolution: React.FC = () => {
             </div>
 
             <div>
-              <label htmlFor="screenshotUrl" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                Screenshot URL <span className="text-gray-400 font-normal">(Optional)</span>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                Upload Screenshot <span className="text-gray-400 font-normal">(Optional)</span>
               </label>
-              <input
-                type="url"
-                id="screenshotUrl"
-                name="screenshotUrl"
-                value={formData.screenshotUrl}
-                onChange={handleChange}
-                placeholder="https://imgur.com/..."
-                className="w-full px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary focus:outline-none"
-              />
+              
+              <div className="mt-1 flex justify-center px-6 pt-5 pb-6 border-2 border-gray-300 dark:border-gray-600 border-dashed rounded-lg hover:border-primary dark:hover:border-primary transition-colors cursor-pointer relative bg-gray-50 dark:bg-gray-800/50">
+                <div className="space-y-1 text-center">
+                  {formData.screenshotUrl ? (
+                    <div className="relative">
+                      <img src={formData.screenshotUrl} alt="Preview" className="mx-auto h-48 object-contain rounded-md" />
+                      <button 
+                        type="button" 
+                        onClick={() => setFormData({...formData, screenshotUrl: ''})}
+                        className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1 hover:bg-red-600"
+                      >
+                        <Upload className="h-3 w-3 transform rotate-45" />
+                      </button>
+                    </div>
+                  ) : (
+                    <>
+                      <ImageIcon className="mx-auto h-12 w-12 text-gray-400" />
+                      <div className="flex text-sm text-gray-600 dark:text-gray-400 justify-center">
+                        <label
+                          htmlFor="file-upload"
+                          className="relative cursor-pointer rounded-md font-medium text-primary hover:text-blue-500 focus-within:outline-none"
+                        >
+                          <span>Upload a file</span>
+                          <input id="file-upload" name="file-upload" type="file" className="sr-only" accept="image/*" onChange={handleFileChange} />
+                        </label>
+                        <p className="pl-1">or drag and drop</p>
+                      </div>
+                      <p className="text-xs text-gray-500 dark:text-gray-500">
+                        PNG, JPG, GIF up to 5MB
+                      </p>
+                    </>
+                  )}
+                </div>
+              </div>
             </div>
 
             <button

@@ -1,6 +1,7 @@
+
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { Task, Submission, Comment } from '../types';
-import { MOCK_TASKS, MOCK_SUBMISSIONS, MOCK_COMMENTS } from '../constants';
+import { db } from '../services/database';
 
 interface TaskContextType {
   tasks: Task[];
@@ -16,6 +17,8 @@ interface TaskContextType {
   addComment: (comment: Comment) => void;
   deleteComment: (commentId: string) => void;
   getCommentsForTask: (taskId: string) => Comment[];
+  updateUserReferences: (oldUsername: string, newUsername: string) => void;
+  refreshData: () => void;
 }
 
 const TaskContext = createContext<TaskContextType>({
@@ -32,56 +35,47 @@ const TaskContext = createContext<TaskContextType>({
   addComment: () => {},
   deleteComment: () => {},
   getCommentsForTask: () => [],
+  updateUserReferences: () => {},
+  refreshData: () => {},
 });
 
 export const useTasks = () => useContext(TaskContext);
 
 export const TaskProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  // Initialize from LocalStorage if available, otherwise use MOCK constants
-  const [tasks, setTasks] = useState<Task[]>(() => {
-    const saved = localStorage.getItem('opsnexus_tasks');
-    return saved ? JSON.parse(saved) : MOCK_TASKS;
-  });
+  // We keep local state to trigger re-renders, but source of truth is DB service
+  const [tasks, setTasks] = useState<Task[]>([]);
+  const [submissions, setSubmissions] = useState<Submission[]>([]);
+  const [comments, setComments] = useState<Comment[]>([]);
 
-  const [submissions, setSubmissions] = useState<Submission[]>(() => {
-    const saved = localStorage.getItem('opsnexus_submissions');
-    return saved ? JSON.parse(saved) : MOCK_SUBMISSIONS;
-  });
+  const refreshData = () => {
+    setTasks(db.tasks.getAll());
+    setSubmissions(db.submissions.getAll());
+    setComments(db.comments.getAll());
+  };
 
-  const [comments, setComments] = useState<Comment[]>(() => {
-    const saved = localStorage.getItem('opsnexus_comments');
-    return saved ? JSON.parse(saved) : MOCK_COMMENTS;
-  });
-
-  // Persist to LocalStorage whenever state changes
+  // Initial load
   useEffect(() => {
-    localStorage.setItem('opsnexus_tasks', JSON.stringify(tasks));
-  }, [tasks]);
-
-  useEffect(() => {
-    localStorage.setItem('opsnexus_submissions', JSON.stringify(submissions));
-  }, [submissions]);
-
-  useEffect(() => {
-    localStorage.setItem('opsnexus_comments', JSON.stringify(comments));
-  }, [comments]);
+    refreshData();
+  }, []);
 
   const addTask = (task: Task) => {
-    setTasks(prev => [task, ...prev]);
+    db.tasks.create(task);
+    refreshData();
   };
 
   const deleteTask = (taskId: string) => {
-    setTasks(prev => prev.filter(t => t.id !== taskId));
-    setSubmissions(prev => prev.filter(s => s.taskId !== taskId));
-    setComments(prev => prev.filter(c => c.taskId !== taskId));
+    db.tasks.delete(taskId);
+    refreshData();
   };
 
   const addSubmission = (submission: Submission) => {
-    setSubmissions(prev => [submission, ...prev]);
+    db.submissions.create(submission);
+    refreshData();
   };
 
   const deleteSubmission = (submissionId: string) => {
-    setSubmissions(prev => prev.filter(s => s.id !== submissionId));
+    db.submissions.delete(submissionId);
+    refreshData();
   };
 
   const getTask = (id: string) => {
@@ -93,21 +87,32 @@ export const TaskProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const upvoteSubmission = (submissionId: string) => {
-    setSubmissions(prev => prev.map(sub => 
-      sub.id === submissionId ? { ...sub, upvotes: sub.upvotes + 1 } : sub
-    ));
+    const sub = submissions.find(s => s.id === submissionId);
+    if (sub) {
+      const updated = { ...sub, upvotes: sub.upvotes + 1 };
+      db.submissions.update(updated);
+      refreshData();
+    }
   };
 
   const addComment = (comment: Comment) => {
-    setComments(prev => [...prev, comment]);
+    db.comments.create(comment);
+    refreshData();
   };
 
   const deleteComment = (commentId: string) => {
-    setComments(prev => prev.filter(c => c.id !== commentId));
+    db.comments.delete(commentId);
+    refreshData();
   };
 
   const getCommentsForTask = (taskId: string) => {
     return comments.filter(c => c.taskId === taskId).sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
+  };
+
+  // Update all references when a user changes their username
+  const updateUserReferences = (oldUsername: string, newUsername: string) => {
+    db.users.updateUsernameRef(oldUsername, newUsername);
+    refreshData();
   };
 
   return (
@@ -124,7 +129,9 @@ export const TaskProvider: React.FC<{ children: React.ReactNode }> = ({ children
       upvoteSubmission,
       addComment, 
       deleteComment,
-      getCommentsForTask
+      getCommentsForTask,
+      updateUserReferences,
+      refreshData
     }}>
       {children}
     </TaskContext.Provider>

@@ -1,21 +1,24 @@
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { BADGES } from '../constants';
 import { useTasks } from '../components/TaskContext';
 import { useAuth } from '../components/AuthContext';
 import { User } from '../types';
-import { MapPin, Calendar, Award, ExternalLink, Shield, Zap, Box, Server, Star, Edit2, Save, X, RefreshCw } from 'lucide-react';
+import { MapPin, Calendar, Award, ExternalLink, Shield, Zap, Box, Server, Star, Edit2, Save, X, RefreshCw, Camera, Upload } from 'lucide-react';
 
 const Profile: React.FC = () => {
   const { user: currentUser, getUserByUsername, updateUserProfile } = useAuth();
+  const { updateUserReferences } = useTasks();
   const { username } = useParams<{ username: string }>();
   const navigate = useNavigate();
   const { submissions } = useTasks();
+  const fileInputRef = useRef<HTMLInputElement>(null);
   
   const [profileUser, setProfileUser] = useState<User | null>(null);
   const [isEditing, setIsEditing] = useState(false);
   const [editForm, setEditForm] = useState({
+    username: '',
     bio: '',
     location: '',
     website: '',
@@ -39,6 +42,7 @@ const Profile: React.FC = () => {
   useEffect(() => {
     if (profileUser) {
       setEditForm({
+        username: profileUser.username,
         bio: profileUser.bio || '',
         location: profileUser.location || '',
         website: profileUser.website || '',
@@ -47,12 +51,53 @@ const Profile: React.FC = () => {
     }
   }, [profileUser]);
 
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setEditForm(prev => ({ ...prev, avatarUrl: reader.result as string }));
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
   const handleSave = () => {
     if (currentUser && profileUser && currentUser.id === profileUser.id) {
-      updateUserProfile(editForm);
+      const oldUsername = currentUser.username;
+      const newUsername = editForm.username.trim();
+
+      // Validate username
+      if (!newUsername) return alert("Username cannot be empty");
+      
+      // Check if username is taken (if changed)
+      if (newUsername !== oldUsername) {
+        const existingUser = getUserByUsername(newUsername);
+        if (existingUser) {
+          return alert("Username already taken!");
+        }
+      }
+
+      // Update User Profile
+      updateUserProfile({
+        ...editForm,
+        username: newUsername
+      });
+
+      // Update References in Tasks/Comments if name changed
+      if (newUsername !== oldUsername) {
+        updateUserReferences(oldUsername, newUsername);
+      }
+
       setIsEditing(false);
-      // Update local profile user state to reflect changes immediately
-      setProfileUser({ ...profileUser, ...editForm });
+      
+      // If name changed, redirect to new URL to avoid "same page" outdated issue
+      if (newUsername !== oldUsername) {
+         navigate(`/profile/${newUsername}`, { replace: true });
+      } else {
+         // Just update local state
+         setProfileUser({ ...profileUser, ...editForm });
+      }
     }
   };
 
@@ -68,20 +113,17 @@ const Profile: React.FC = () => {
       <div className="max-w-5xl mx-auto px-4 py-20 text-center">
         <h2 className="text-2xl font-bold text-gray-900 dark:text-white">User not found</h2>
         <p className="text-gray-600 dark:text-gray-400 mt-2">The user you are looking for does not exist.</p>
+        <button onClick={() => navigate('/')} className="mt-4 text-primary hover:underline">Go Home</button>
       </div>
     );
   }
 
-  // Filter submissions made by this user (including ones added in session)
+  // Filter submissions made by this user
   const userSubmissions = submissions.filter(s => s.userName === profileUser.username);
-  
-  // Calculate total upvotes dynamically
   const totalUpvotes = userSubmissions.reduce((acc, curr) => acc + curr.upvotes, 0);
-
   const isOwner = currentUser?.id === profileUser.id;
   const isAdmin = currentUser?.role === 'admin';
   
-  // Map string icon names to Lucide components
   const getBadgeIcon = (iconName: string, className: string) => {
     switch (iconName) {
       case 'Award': return <Award className={className} />;
@@ -106,8 +148,8 @@ const Profile: React.FC = () => {
   return (
     <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
       {/* Header Profile Card */}
-      <div className="bg-white dark:bg-darklighter rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6 md:p-8 mb-8 relative overflow-hidden">
-        <div className="absolute top-0 left-0 w-full h-24 bg-gradient-to-r from-primary to-secondary opacity-20"></div>
+      <div className="bg-white dark:bg-darklighter rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6 md:p-8 mb-8 relative overflow-visible">
+        <div className="absolute top-0 left-0 w-full h-24 bg-gradient-to-r from-primary to-secondary opacity-20 rounded-t-xl"></div>
         
         <div className="relative flex flex-col md:flex-row gap-6 items-start md:items-end pt-12">
           
@@ -120,43 +162,71 @@ const Profile: React.FC = () => {
                 (e.target as HTMLImageElement).src = `https://ui-avatars.com/api/?name=${profileUser.username}&background=random`;
               }}
             />
+            {isEditing && (
+              <>
+                <div 
+                  className="absolute inset-0 bg-black/50 rounded-lg flex items-center justify-center cursor-pointer hover:bg-black/60 transition-colors"
+                  onClick={() => fileInputRef.current?.click()}
+                >
+                  <Camera className="text-white h-8 w-8" />
+                </div>
+                <input 
+                  type="file" 
+                  ref={fileInputRef} 
+                  className="hidden" 
+                  accept="image/*"
+                  onChange={handleFileChange}
+                />
+              </>
+            )}
           </div>
           
           <div className="flex-1 mb-2 w-full">
             <div className="flex justify-between items-start">
-               <div>
-                  <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-1 flex items-center gap-2">
-                    {profileUser.username} 
-                    {profileUser.role === 'admin' && (
-                      <span className="px-2 py-1 text-xs bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300 rounded-full font-bold uppercase tracking-wide">
-                        Admin
-                      </span>
-                    )}
-                  </h1>
+               <div className="w-full max-w-lg">
+                  {isEditing ? (
+                    <div className="mb-2">
+                      <label className="text-xs text-gray-500 uppercase font-bold">Username</label>
+                      <input 
+                         type="text"
+                         value={editForm.username}
+                         onChange={(e) => setEditForm({...editForm, username: e.target.value})}
+                         className="w-full px-3 py-2 text-xl font-bold border rounded dark:bg-gray-800 dark:border-gray-600 dark:text-white"
+                      />
+                    </div>
+                  ) : (
+                    <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-1 flex items-center gap-2">
+                      {profileUser.username} 
+                      {profileUser.role === 'admin' && (
+                        <span className="px-2 py-1 text-xs bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300 rounded-full font-bold uppercase tracking-wide">
+                          Admin
+                        </span>
+                      )}
+                    </h1>
+                  )}
 
                   {isEditing ? (
-                    <div className="space-y-3 mt-2 max-w-md">
-                      <input 
-                         type="text"
-                         value={editForm.bio}
-                         onChange={(e) => setEditForm({...editForm, bio: e.target.value})}
-                         placeholder="Bio"
-                         className="w-full px-3 py-1 text-sm border rounded dark:bg-gray-800 dark:border-gray-600 dark:text-white"
-                      />
-                      <input 
-                         type="text"
-                         value={editForm.location}
-                         onChange={(e) => setEditForm({...editForm, location: e.target.value})}
-                         placeholder="Location"
-                         className="w-full px-3 py-1 text-sm border rounded dark:bg-gray-800 dark:border-gray-600 dark:text-white"
-                      />
-                       <input 
-                         type="text"
-                         value={editForm.avatarUrl}
-                         onChange={(e) => setEditForm({...editForm, avatarUrl: e.target.value})}
-                         placeholder="Avatar URL"
-                         className="w-full px-3 py-1 text-sm border rounded dark:bg-gray-800 dark:border-gray-600 dark:text-white"
-                      />
+                    <div className="space-y-3 mt-4">
+                      <div>
+                        <label className="text-xs text-gray-500 uppercase">Bio</label>
+                        <input 
+                           type="text"
+                           value={editForm.bio}
+                           onChange={(e) => setEditForm({...editForm, bio: e.target.value})}
+                           placeholder="DevOps Enthusiast"
+                           className="w-full px-3 py-2 text-sm border rounded dark:bg-gray-800 dark:border-gray-600 dark:text-white"
+                        />
+                      </div>
+                      <div>
+                        <label className="text-xs text-gray-500 uppercase">Location</label>
+                        <input 
+                           type="text"
+                           value={editForm.location}
+                           onChange={(e) => setEditForm({...editForm, location: e.target.value})}
+                           placeholder="San Francisco, CA"
+                           className="w-full px-3 py-2 text-sm border rounded dark:bg-gray-800 dark:border-gray-600 dark:text-white"
+                        />
+                      </div>
                     </div>
                   ) : (
                     <>
@@ -179,18 +249,30 @@ const Profile: React.FC = () => {
                </div>
 
                {isOwner && (
-                 <div>
+                 <div className="ml-4 flex-shrink-0">
                    {isEditing ? (
-                     <div className="flex gap-2">
+                     <div className="flex flex-col gap-2">
                         <button 
                           onClick={handleSave} 
-                          className="flex items-center gap-1 px-3 py-1.5 bg-green-600 hover:bg-green-700 text-white rounded-md text-sm font-medium transition-colors"
+                          className="flex items-center justify-center gap-1 px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-md text-sm font-medium transition-colors shadow-sm"
                         >
                           <Save className="h-4 w-4" /> Save
                         </button>
                         <button 
-                          onClick={() => setIsEditing(false)} 
-                          className="flex items-center gap-1 px-3 py-1.5 bg-gray-200 hover:bg-gray-300 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-800 dark:text-gray-200 rounded-md text-sm font-medium transition-colors"
+                          onClick={() => {
+                            setIsEditing(false);
+                            // Reset form to current user state
+                            if (profileUser) {
+                              setEditForm({
+                                username: profileUser.username,
+                                bio: profileUser.bio || '',
+                                location: profileUser.location || '',
+                                website: profileUser.website || '',
+                                avatarUrl: profileUser.avatarUrl || ''
+                              });
+                            }
+                          }} 
+                          className="flex items-center justify-center gap-1 px-4 py-2 bg-gray-200 hover:bg-gray-300 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-800 dark:text-gray-200 rounded-md text-sm font-medium transition-colors"
                         >
                           <X className="h-4 w-4" /> Cancel
                         </button>
@@ -198,7 +280,7 @@ const Profile: React.FC = () => {
                    ) : (
                      <button 
                        onClick={() => setIsEditing(true)} 
-                       className="flex items-center gap-1 px-3 py-1.5 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-md text-sm font-medium transition-colors"
+                       className="flex items-center gap-1 px-4 py-2 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-md text-sm font-medium transition-colors shadow-sm"
                      >
                        <Edit2 className="h-4 w-4" /> Edit Profile
                      </button>

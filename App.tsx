@@ -15,6 +15,7 @@ import Profile from './pages/Profile';
 import Login from './pages/Login';
 import Signup from './pages/Signup';
 import AIAgent from './components/AIAgent';
+import AdminDatabase from './pages/AdminDatabase';
 
 const App: React.FC = () => {
   return (
@@ -35,6 +36,7 @@ const App: React.FC = () => {
                   <Route path="/submit" element={<SubmitSolution />} />
                   <Route path="/leaderboard" element={<Leaderboard />} />
                   <Route path="/profile/:username?" element={<Profile />} />
+                  <Route path="/admin/database" element={<AdminDatabase />} />
                 </Routes>
               </main>
               
